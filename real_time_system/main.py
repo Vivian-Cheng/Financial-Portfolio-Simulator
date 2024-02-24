@@ -1,10 +1,14 @@
-from config import SYMBOL_CALL_INTERVAL, SYMBOLS, MONGODB_SERVER
-from db_handler import start_mongodb
-from queue import Queue
-import request_handler
+import sys
 import sched
 import time
+import datetime
 import threading
+import logging
+from queue import Queue
+from config import SYMBOL_CALL_INTERVAL, SYMBOLS, MONGODB_SERVER_ADDR, DB_NAME, TOTAL_BUCKET
+from request_handler import run_retrieval
+from db_handler import connect_mongodb, scan_database, ConsistentHash, get_or_create_collection, insert_one
+from data_processor import transform_data
 
 """Entry point for the real-time system script.
 
@@ -12,55 +16,93 @@ This script imports modules and orchestrates the data retrieval, processing,
 and writing tasks.
 """
 
-ava_mongodb = {}
+# create a thread-safe processing queue
+q = Queue()
 
-"""Schedule retrieval task.
-
-Repeat the retrieval task for the given symbol to run every 
-SYMBOL_CALL_INTERVAL second.
-
-Args:
-    scheduler: An sched.scheduler() instance.
-    symbol: A string representing the stock symbol.
-    q: An Queue instance.
+"""First procedure of api thread.
 """
-def schedule_retrieval(scheduler, symbol, q):
-    data = request_handler.run_retrieval(symbol)
-    q.put(data)
-    scheduler.enter(SYMBOL_CALL_INTERVAL, 1, schedule_retrieval, (scheduler, symbol, q))
-
-"""Process the fetched data and insert it into the database.
-
-Args:
-    q: An Queue instance.
-"""
-def process_data(q):
-    while True:
-        if not q.empty():
-            #TODO
-            print(q.get())
-            print(time.strftime("%H:%M:%S", time.localtime()))
-            q.task_done()
-
-"""Setup connection to the available MongoDB instances.
-"""
-def setup_db():
-    for node_key, url in MONGODB_SERVER.items():
-        db = start_mongodb(url)
-        if db == None:
-            continue
-        ava_mongodb[node_key] = db
-
-# TODO Vivian - check the Python threading library and ensure all threads will be cleaned when program ends.
-def main():
-    q = Queue()
+def run_api_thread(terminate_time):
+    logging.info("Start api thread")
     scheduler = sched.scheduler(time.time, time.sleep)
     for symbol in SYMBOLS:
-        scheduler.enter(0, 1, schedule_retrieval, (scheduler, symbol, q))
-    # Setup a separating thread for data processing tasks
-    threading.Thread(target=process_data, args=(q,), daemon=True).start()
-    # Setup main thread for data retrieval tasks
+        scheduler.enter(0, 1, schedule_retrieval, 
+                        (scheduler, symbol, terminate_time, ))
     scheduler.run()
+    logging.info("End api thread: termination time")
 
+"""Repeat the retrieval task for the given symbol to run every 
+SYMBOL_CALL_INTERVAL second.
+"""
+def schedule_retrieval(scheduler, symbol, terminate_time):
+    data = run_retrieval(symbol)
+    logging.info(f"Retrieve {symbol} data: {data}")
+    q.put((symbol, data))
+    if datetime.datetime.now() < terminate_time:
+        scheduler.enter(SYMBOL_CALL_INTERVAL, 1, schedule_retrieval, 
+                        (scheduler, symbol, terminate_time))
+
+"""First procedure of data thread.
+"""
+def run_data_thread(client, consistent_hash, terminate_time):
+    logging.info("Start data thread")
+    while datetime.datetime.now() < terminate_time:
+        if not q.empty():
+            data = q.get()
+            ret = process_data(data[0], data[1], client, consistent_hash)
+            if ret < 0:
+                raise Exception("Insert one data error!")
+    print("End data thread: termination time")
+
+"""Process data in queue and insert the transformed data into database.
+"""
+def process_data(symbol, data, client, consistent_hash):
+    trans_data = transform_data(symbol, data)
+    db_id = consistent_hash.get_node(symbol)
+    db_name = DB_NAME + db_id
+    collection = get_or_create_collection(db=client[db_name], name=symbol)
+    ret = insert_one(collection=collection, doc=trans_data)
+    logging.info(f"Insert one data intto database: {db_name} collection: {symbol}")
+    return ret
+
+
+def main():
+    # get program termination time from input
+    if len(sys.argv) < 2:
+        raise Exception("Missing argument: termination time")
+    terminate_time = datetime.datetime.strptime(sys.argv[1], "%Y-%m-%d %H:%M:%S")
+    logging.info(f"Program start, will terminate at {terminate_time}")
+
+    # establich connection to MongoDB server
+    client = connect_mongodb(MONGODB_SERVER_ADDR)
+    if client == None:
+        raise Exception(f"Cannot establish connection to MongoDB server at {MONGODB_SERVER_ADDR}")
+    logging.info(f"Establish connection to MongoDB server at {MONGODB_SERVER_ADDR}")
+    # scan to get the number of available databases
+    num_database = scan_database(client)
+    if num_database == 0:
+        raise Exception("No available database")
+    logging.info(f"Scan databases: total {num_database} are available")
+
+    # initialize consistent hash
+    consistent_hash = ConsistentHash(num_bucket=TOTAL_BUCKET, num_db=num_database)
+    
+    # Set up API thread for handling request to API
+    api_thread = threading.Thread(target=run_api_thread, args=(terminate_time, ))
+    # Set up data thread for data processing tasks
+    data_thread = threading.Thread(target=run_data_thread, args=(client, consistent_hash, terminate_time,))
+
+    api_thread.start()
+    data_thread.start()
+    
+    api_thread.join()
+    data_thread.join()
+
+    # process remaining data in queue
+    while not q.empty():
+        data = q.get()
+        ret = process_data(data[0], data[1], client, consistent_hash)
+        if ret < 0:
+            raise Exception("Insert one data error!")
+    
 if __name__ == '__main__':
     main()

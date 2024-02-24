@@ -20,17 +20,15 @@ API_URL = "https//dummy/url"
 SYMBOLS = ["dummy_symbol_1", "dummy_symbol_2", "dummy_symbol_3", 
            "dummy_symbol_4", "dummy_symbol_5"]
 
-
-#TODO: Any database-related constant?
-# Available MongoDB instances
-MONGODB_SERVER = {
-    'dummy_server_1': 'dummy_server_1_url',
-    'dummy_server_2': 'dummy_server_2_url'
-}
-# Name of database in each MongoDB instance
-DB_NAME = "stock"
+# The port number of the MongoDB server in localhost
+MONGODB_PORT = 8000
+# The address of the MongoDB server
+MONGODB_SERVER_ADDR = f"mongodb://localhost:{MONGODB_PORT}/"
+# Name of the databases in the MongoDB instance
+DB_NAME = "db_"
 # The data model of a stock quote data
 DATA_MODEL = {
+    '_id': '_id',
     'current_price': 'c',
     'change': 'd',
     'percent_change': 'dp',
@@ -42,3 +40,5 @@ DATA_MODEL = {
 }
 # TTL seconds
 TTL = 86400
+# total buckets for consistent hash
+TOTAL_BUCKET = 50
