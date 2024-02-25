@@ -8,7 +8,7 @@ tasks.
 Implementation:
     1. keep info about symbol and its last visit time
     2. keep info about API_key and its last call time
-    3. for the given symbol, check whether the (current time - last visit time)
+    3. [DO NOT NEED THIS NOW!] for the given symbol, check whether the (current time - last visit time)
     is greater or equal to SYMBOL_CALL_INTERVAL
     4. create method to choose an available API_key, check the (current time -
     last call time) is greater than (1 / API_RATE_LIMIT). If an API_key isn't 
