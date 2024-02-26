@@ -50,7 +50,7 @@ def run_data_thread(client, consistent_hash, terminate_time):
         if not q.empty():
             data = q.get()
             ret = process_data(data[0], data[1], client, consistent_hash)
-            if ret < 0:
+            if ret == -1:
                 raise Exception("Insert one data error!")
     print("End data thread: termination time")
 
@@ -91,6 +91,7 @@ def main():
     consistent_hash = ConsistentHash(num_bucket=TOTAL_BUCKET, num_db=num_database)
 
     if is_open:
+        logging.info(f"Market is open today")
         # Set up API thread for handling request to API
         api_thread = threading.Thread(target=run_api_thread, args=(terminate_time, ))
         # Set up data thread for data processing tasks
@@ -102,6 +103,7 @@ def main():
         api_thread.join()
         data_thread.join()
     else: # fetch one data for each symbol if market is close today
+        logging.info(f"Market is close today")
         for symbol in SYMBOLS:
             data = run_retrieval(symbol)
             q.put((symbol, data))
@@ -110,7 +112,7 @@ def main():
     while not q.empty():
         data = q.get()
         ret = process_data(data[0], data[1], client, consistent_hash)
-        if ret < 0:
+        if ret == -1:
             raise Exception("Insert one data error!")
     
 if __name__ == '__main__':

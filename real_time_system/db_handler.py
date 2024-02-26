@@ -64,7 +64,7 @@ Args:
     doc: A dict representing the document(data) we want to insert.
 
 Return:
-    A number representing the ID of inserted document, or -1 if error occurs. 
+    A string representing the ID of inserted document, or -1 if error occurs. 
 """
 def insert_one(collection, doc):
     try:
