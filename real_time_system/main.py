@@ -5,8 +5,8 @@ import datetime
 import threading
 import logging
 from queue import Queue
-from config import SYMBOL_CALL_INTERVAL, SYMBOLS, MONGODB_SERVER_ADDR, DB_NAME, TOTAL_BUCKET
-from request_handler import run_retrieval
+from config import SYMBOL_CALL_INTERVAL, SYMBOLS, MONGODB_SERVER_ADDR, DB_NAME, TOTAL_BUCKET, MARKET_API_URL
+from request_handler import run_retrieval, check_market_status
 from db_handler import connect_mongodb, scan_database, ConsistentHash, get_or_create_collection, insert_one
 from data_processor import transform_data
 
@@ -16,6 +16,7 @@ This script imports modules and orchestrates the data retrieval, processing,
 and writing tasks.
 """
 
+logging.basicConfig(level=logging.INFO)
 # create a thread-safe processing queue
 q = Queue()
 
@@ -72,6 +73,9 @@ def main():
     terminate_time = datetime.datetime.strptime(sys.argv[1], "%Y-%m-%d %H:%M:%S")
     logging.info(f"Program start, will terminate at {terminate_time}")
 
+    # check market status
+    is_open = check_market_status()
+
     # establich connection to MongoDB server
     client = connect_mongodb(MONGODB_SERVER_ADDR)
     if client == None:
@@ -85,18 +89,23 @@ def main():
 
     # initialize consistent hash
     consistent_hash = ConsistentHash(num_bucket=TOTAL_BUCKET, num_db=num_database)
-    
-    # Set up API thread for handling request to API
-    api_thread = threading.Thread(target=run_api_thread, args=(terminate_time, ))
-    # Set up data thread for data processing tasks
-    data_thread = threading.Thread(target=run_data_thread, args=(client, consistent_hash, terminate_time,))
 
-    api_thread.start()
-    data_thread.start()
-    
-    api_thread.join()
-    data_thread.join()
+    if is_open:
+        # Set up API thread for handling request to API
+        api_thread = threading.Thread(target=run_api_thread, args=(terminate_time, ))
+        # Set up data thread for data processing tasks
+        data_thread = threading.Thread(target=run_data_thread, args=(client, consistent_hash, terminate_time,))
 
+        api_thread.start()
+        data_thread.start()
+        
+        api_thread.join()
+        data_thread.join()
+    else: # fetch one data for each symbol if market is close today
+        for symbol in SYMBOLS:
+            data = run_retrieval(symbol)
+            q.put((symbol, data))
+    
     # process remaining data in queue
     while not q.empty():
         data = q.get()

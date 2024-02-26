@@ -30,10 +30,7 @@ def transform_data(symbol, data):
     for key in DATA_MODEL.keys():
         trans_data[key] = data.get(DATA_MODEL[key], None)
     # convert the date format
-    if trans_data['timestamp'] is not None:
-        trans_data['timestamp'] = unix_timestamp_to_datetime(trans_data['timestamp']) 
-    else:
-        trans_data['timestamp'] = datetime.datetime.today()
+    trans_data['timestamp'] = datetime.datetime.today()
     # assign _id
     trans_data['_id'] = f'{symbol}_{datetime.datetime.today()}'
     return trans_data

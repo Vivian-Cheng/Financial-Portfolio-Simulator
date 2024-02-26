@@ -1,4 +1,5 @@
-from config import API_RATE_LIMIT, API_KEYS, API_URL, SYMBOL_CALL_INTERVAL
+import requests
+from config import API_RATE_LIMIT, API_KEYS, API_URL, SYMBOL_CALL_INTERVAL, MARKET_API_URL, RETRY_COUNT, RETRY_DELAY
 
 """Handles interactions with the stock API.
 
@@ -6,7 +7,7 @@ This module provides functions to fetch stock data and schedule data retrieval
 tasks.
 
 Implementation:
-    1. keep info about symbol and its last visit time
+    1. [DO NOT NEED THIS NOW!]keep info about symbol and its last visit time
     2. keep info about API_key and its last call time
     3. [DO NOT NEED THIS NOW!] for the given symbol, check whether the (current time - last visit time)
     is greater or equal to SYMBOL_CALL_INTERVAL
@@ -40,4 +41,23 @@ Return:
 def run_retrieval(symbol):
     # TODO
     return symbol
+
+def check_market_status():
+    # TODO - replace the API key with variable here
+    is_open = False
+    status_forcelist=[429, 500, 502, 503, 504]
+    params = {'exchange': 'US', 'token': 'c844d4qad3ide9hefb20'}
+    for _ in range(RETRY_COUNT):
+        try:
+            res = requests.get(MARKET_API_URL, params=params)
+            if res.status_code in status_forcelist:
+                continue
+            break
+        except requests.exceptions.RequestException as e:
+            pass
+    if res.status_code == 200:
+        data = res.json()
+        is_open = data.get('isOpen', False)
+    return is_open
+
 

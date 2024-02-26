@@ -15,10 +15,13 @@ SYMBOL_CALL_INTERVAL = 15
 # API endpoint
 # TODO: Put API endpoint here. May create more constant if more that one endpoint.
 API_URL = "https//dummy/url"
+MARKET_API_URL = "https://finnhub.io/api/v1/stock/market-status"
 # A list contains all symbols we fetch in the system
 # TODO: Put symbols here.
 SYMBOLS = ["dummy_symbol_1", "dummy_symbol_2", "dummy_symbol_3", 
            "dummy_symbol_4", "dummy_symbol_5"]
+RETRY_COUNT = 3
+RETRY_DELAY = 1
 
 # The port number of the MongoDB server in localhost
 MONGODB_PORT = 8000
@@ -36,6 +39,7 @@ DATA_MODEL = {
     'low_price': 'l',
     'open_price': 'o',
     'prev_close_price': 'pc',
+    't': 't',
     'timestamp': 't'
 }
 # TTL seconds
