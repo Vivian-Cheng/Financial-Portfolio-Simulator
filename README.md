@@ -31,6 +31,7 @@ In the MongoDB setup, each stock's data is distributed across multiple databases
     'low_price': 'low price',
     'open_price': 'open price',
     'prev_close_price': 'prev close price',
+    't': 'timestamp from API',
     'timestamp': ISODate()
 
 },{
