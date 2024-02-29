@@ -1,46 +1,17 @@
 import requests
 import datetime
 import time
-from config import API_RATE_LIMIT, API_KEYS, LAST_CALL_TIMES, API_URL, SYMBOL_CALL_INTERVAL, MARKET_API_URL, RETRY_COUNT, RETRY_DELAY
+from config import API_RATE_LIMIT, API_KEYS, LAST_CALL_TIMES, API_URL, MARKET_API_URL, RETRY_COUNT, RETRY_DELAY
 
 """Handles interactions with the stock API.
 
 This module provides functions to fetch stock data and schedule data retrieval
 tasks.
 
-Implementation:
-    1. [DO NOT NEED THIS NOW!]keep info about symbol and its last visit time
-    2. keep info about API_key and its last call time
-    3. [DO NOT NEED THIS NOW!] for the given symbol, check whether the (current time - last visit time)
-    is greater or equal to SYMBOL_CALL_INTERVAL
-    4. create method to choose an available API_key, check the (current time -
-    last call time) is greater than (1 / API_RATE_LIMIT). If an API_key isn't 
-    valid at this moment, try another one, until all API_key has been tried.
-    5. run request to fetch stock quote using API_URL + symbol + API_key
-    sample: https://finnhub.io/api/v1/quote?symbol=TSLA&token=API_KEY
-    or see: https://finnhub.io/docs/api/quote
-    6. assume we have: res = requests.get("https://dummy")
-    return res.json()
-    7. apply appropriate error handling
-
-    Feel free to add more CONSTANT in config.py and add more functions in this
-    module!
-
 Typical usage example:
     data = run_retrieval("TSLA") # this is the only function that will be called
     from main module
 """
-
-
-"""Run retrieval task.
-
-Args:
-    symbol: A string representing a stock symbol
-
-Return:
-    x.json() assuming x is the return object from requests
-"""
-
 
 #helper functions
 def currenttime():
@@ -76,8 +47,10 @@ def choose_api_key():
             return key
         else:
             difference = time_since_last_call(last_call_time)
+            if difference < 1 / API_RATE_LIMIT:
+                continue
             if difference >max_diff:
-                max_dif=difference
+                max_diff=difference
                 chosen_key=key
 
     #Update the last call time for the chosen key
@@ -92,18 +65,23 @@ def run_retrieval(symbol):
     Retrieve stock quotes from Finnhub given parameter symbol
     Return: stock quotes in json format
     """
+    print(f"Start run retrieval {symbol}: {datetime.datetime.now()}")
     # Choose an available API key
     api_key = choose_api_key()
     url= f"{API_URL}?symbol={symbol}&token={api_key}"
-
-    try:
-        response = requests.get(url)
-        response.raise_for_status()  # Raise an exception for HTTP errors
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        #Handle request exceptions
-        print("Error fetching data:", e)
-        return None
+    print(f"Request URL: {url} with key {api_key}")
+    for _ in range(RETRY_COUNT):
+        try:
+            response = requests.get(url, timeout=3)
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            print(f"End run retrieval {symbol}: {datetime.datetime.now()}")
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            #Handle request exceptions
+            print("Error fetching data:", e)
+            time.sleep(RETRY_DELAY)
+    print(f"End run retrieval {symbol}: {datetime.datetime.now()}")
+    return None
     
 
 def check_market_status():
@@ -113,7 +91,6 @@ def check_market_status():
     If True, market is curently open
     If False, market is curently closed
     """
-    # TODO - replace the API key with variable here DONE
     api_key = choose_api_key()
     is_open = False
     status_forcelist=[429, 500, 502, 503, 504]
@@ -125,7 +102,8 @@ def check_market_status():
                 continue
             break
         except requests.exceptions.RequestException as e:
-            pass
+            print(f"Request error: {e}")
+            time.sleep(RETRY_DELAY)
     if res.status_code == 200:
         data = res.json()
         is_open = data.get('isOpen', False)

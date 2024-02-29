@@ -4,29 +4,23 @@ This module contains all parameters used in the real-time system script.
 """
 
 # The maximum number of calls per second per API key
-API_RATE_LIMIT = 5
+API_RATE_LIMIT = 10
 # A list of available API keys
-# TODO: all - Put your API keys here.
-API_KEYS = ["c844d4qad3ide9hefb20", "cnfda4pr01qi6ftoi2h0cnfda4pr01qi6ftoi2hg", 
-            "dummy_key_3", "dummy_key_4", 
-            "dummy_key_5", "dummy_key_6"]
+API_KEYS = ["c844d4qad3ide9hefb20",
+            "cnfda4pr01qi6ftoi2h0cnfda4pr01qi6ftoi2hg", 
+            "c846b7qad3ide9hefshg"]
 #Store last call time for each API keys
 LAST_CALL_TIMES = {
     "c844d4qad3ide9hefb20": None, 
     "cnfda4pr01qi6ftoi2h0cnfda4pr01qi6ftoi2hg": None,        
-    "dummy_key_3": None,
-    "dummy_key_4": None,
-    "dummy_key_5": None, 
-    "dummy_key_6": None
+    "c846b7qad3ide9hefshg": None
 }
 # Interval between calls for each symbol in second
 SYMBOL_CALL_INTERVAL = 15
 # API endpoint
-# TODO: Put API endpoint here. May create more constant if more that one endpoint. DONE
 API_URL = "https://finnhub.io/api/v1/quote"
 MARKET_API_URL = "https://finnhub.io/api/v1/stock/market-status"
 # A list contains all symbols we fetch in the system
-# TODO: Put symbols here. DONE
 SYMBOLS = ["MMM", "AOS", "ABT", "ABBV", "ACN", "ADBE", "AMD", "AES", "AFL", "A", "APD", "ABNB", "AKAM", "ALB", 
            "ARE", "ALGN", "ALLE", "LNT", "ALL", "GOOGL", "GOOG","MO", "AMZN", "AMCR", "AEE", "AAL", "AEP", "AXP", 
            "AIG", "AMT", "AWK", "AMP", "AME", "AMGN", "APH", "ADI", "ANSS", "AON", "APA", "AAPL", "AMAT", "APTV", 

@@ -36,6 +36,8 @@ SYMBOL_CALL_INTERVAL second.
 """
 def schedule_retrieval(scheduler, symbol, terminate_time):
     data = run_retrieval(symbol)
+    if data == None:
+        logging.error("Retrieve None data.")
     logging.info(f"Retrieve {symbol} data: {data}")
     q.put((symbol, data))
     if datetime.datetime.now() < terminate_time:
