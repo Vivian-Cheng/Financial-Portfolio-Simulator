@@ -65,14 +65,26 @@ def choose_api_key():
     If an API_key isn't valid at this moment, try another one, until all API_key has been tried.
     Return: API_key
     """
+    max_diff=-1
+    chosen_key=None
+
     for key in API_KEYS:
         last_call_time=LAST_CALL_TIMES[key]
-        if last_call_time is None or (time_since_last_call(last_call_time) > 1 / API_RATE_LIMIT):
+        if last_call_time is None:
             #Update last call time for the chosen key
             LAST_CALL_TIMES[key] = currenttime()
             return key
+        else:
+            difference = time_since_last_call(last_call_time)
+            if difference >max_diff:
+                max_dif=difference
+                chosen_key=key
+
+    #Update the last call time for the chosen key
+    LAST_CALL_TIMES[chosen_key] = currenttime()
     #If all keys have reached rate limit, return None
-    return None
+    return chosen_key
+
 
 #Main
 def run_retrieval(symbol):
