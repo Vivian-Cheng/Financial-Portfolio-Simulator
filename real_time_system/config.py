@@ -8,12 +8,20 @@ API_RATE_LIMIT = 10
 # A list of available API keys
 API_KEYS = ["c844d4qad3ide9hefb20",
             "cnfda4pr01qi6ftoi2h0cnfda4pr01qi6ftoi2hg", 
-            "c846b7qad3ide9hefshg"]
+            "c846b7qad3ide9hefshg",
+            "cnj1521r01qkq94g71h0cnj1521r01qkq94g71hg",
+            "cnj16q1r01qkq94g72u0cnj16q1r01qkq94g72ug",
+            "cnj17a9r01qkq94g7390cnj17a9r01qkq94g739g",
+            "cnj17m1r01qkq94g73i0cnj17m1r01qkq94g73ig"]
 #Store last call time for each API keys
 LAST_CALL_TIMES = {
     "c844d4qad3ide9hefb20": None, 
     "cnfda4pr01qi6ftoi2h0cnfda4pr01qi6ftoi2hg": None,        
-    "c846b7qad3ide9hefshg": None
+    "c846b7qad3ide9hefshg": None,
+    "cnj1521r01qkq94g71h0cnj1521r01qkq94g71hg": None,
+    "cnj16q1r01qkq94g72u0cnj16q1r01qkq94g72ug": None,
+    "cnj17a9r01qkq94g7390cnj17a9r01qkq94g739g": None,
+    "cnj17m1r01qkq94g73i0cnj17m1r01qkq94g73ig": None
 }
 # Interval between calls for each symbol in second
 SYMBOL_CALL_INTERVAL = 15
@@ -53,6 +61,8 @@ SYMBOLS = ["MMM", "AOS", "ABT", "ABBV", "ACN", "ADBE", "AMD", "AES", "AFL", "A",
            "UBER", "UDR", "ULTA", "UNP", "UAL", "UPS", "URI", "UNH", "UHS", "VLO", "VTR", "VLTO", "VRSN", "VRSK", "VZ", "VRTX", 
            "VFC", "VTRS", "VICI", "V", "VMC", "WRB", "WAB", "WBA", "WMT", "DIS", "WBD", "WM", "WAT", "WEC", "WFC", "WELL", "WST", 
            "WDC", "WRK", "WY", "WHR", "WMB", "WTW", "GWW", "WYNN", "XEL", "XYL", "YUM", "ZBRA", "ZBH", "ZION", "ZTS"]
+
+SYMBOLS_100 = SYMBOLS[:100]
 
 RETRY_COUNT = 3
 RETRY_DELAY = 1

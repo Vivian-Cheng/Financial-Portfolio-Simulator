@@ -5,7 +5,8 @@ import datetime
 import threading
 import logging
 from queue import Queue
-from config import SYMBOL_CALL_INTERVAL, SYMBOLS, MONGODB_SERVER_ADDR, DB_NAME, TOTAL_BUCKET, MARKET_API_URL
+from concurrent import futures
+from config import SYMBOL_CALL_INTERVAL, SYMBOLS, SYMBOLS_100, MONGODB_SERVER_ADDR, DB_NAME, TOTAL_BUCKET
 from request_handler import run_retrieval, check_market_status
 from db_handler import connect_mongodb, scan_database, ConsistentHash, get_or_create_collection, insert_one
 from data_processor import transform_data
@@ -95,14 +96,30 @@ def main():
     if is_open:
         logging.info(f"Market is open today")
         # Set up API thread for handling request to API
-        api_thread = threading.Thread(target=run_api_thread, args=(terminate_time, ))
+        # api_thread = threading.Thread(target=run_api_thread, args=(terminate_time, ))
         # Set up data thread for data processing tasks
         data_thread = threading.Thread(target=run_data_thread, args=(client, consistent_hash, terminate_time,))
 
-        api_thread.start()
+        # api_thread.start()
         data_thread.start()
+
+        # Set up multi-thread for API request
+        while datetime.datetime.now() < terminate_time:
+            logging.info(f"Start a new round: {datetime.datetime.now()}")
+            with futures.ThreadPoolExecutor(max_workers=7) as executor:
+                future_to_symbol = {executor.submit(run_retrieval, symbol): symbol for symbol in SYMBOLS_100}
+                for future in futures.as_completed(future_to_symbol):
+                    symbol = future_to_symbol[future]
+                    try:
+                        data = future.result()
+                        logging.info(f"Retrieve {symbol} data: {data}")
+                        q.put((symbol, data))
+                    except Exception as e:
+                        logging.error(f"{symbol} generating exception: {e}")
+            logging.info(f"End a round: {datetime.datetime.now()}")
+
         
-        api_thread.join()
+        # api_thread.join()
         data_thread.join()
     else: # fetch one data for each symbol if market is close today
         logging.info(f"Market is close today")
