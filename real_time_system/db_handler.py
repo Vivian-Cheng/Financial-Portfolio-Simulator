@@ -1,8 +1,11 @@
 import pymongo
 import hashlib
 import logging
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from bisect import bisect, bisect_left, bisect_right
-from config import DATA_MODEL, TTL, DB_NAME
+from real_time_system.config import DATA_MODEL, TTL, DB_NAME
 
 """Handles query to the database.
 
@@ -91,22 +94,6 @@ def insert_many(collection, docs_list):
     except Exception as e:
         logging.error(f"Insert many documents error: {e}")
         return None
-
-"""Get the latest data of the given stock.
-
-Implementation:
-    1. Use get_stock_collection() to get the collection of the given stock.
-    2. Query (ex: find_one() in pymongo library) to search for the latest data.
-
-Args:
-    symbol: A string representing the stock symbol
-
-Return:
-    data
-"""
-def get_latest_data(symbol):
-    # TODO
-    return None
 
 """Creates an integer equivalent of a SHA256 hash and
 takes a modulo with the total number of buckets in hash space.

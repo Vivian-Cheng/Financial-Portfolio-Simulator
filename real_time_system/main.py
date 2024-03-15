@@ -123,7 +123,7 @@ def main():
         data_thread.join()
     else: # fetch one data for each symbol if market is close today
         logging.info(f"Market is close today")
-        for symbol in SYMBOLS:
+        for symbol in SYMBOLS_100:
             data = run_retrieval(symbol)
             q.put((symbol, data))
     
