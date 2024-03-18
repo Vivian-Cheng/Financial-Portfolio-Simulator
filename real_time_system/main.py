@@ -106,17 +106,19 @@ def main():
         # Set up multi-thread for API request
         while datetime.datetime.now() < terminate_time:
             logging.info(f"Start a new round: {datetime.datetime.now()}")
-            with futures.ThreadPoolExecutor(max_workers=7) as executor:
+            with futures.ThreadPoolExecutor(max_workers=5) as executor:
                 future_to_symbol = {executor.submit(run_retrieval, symbol): symbol for symbol in SYMBOLS_100}
                 for future in futures.as_completed(future_to_symbol):
                     symbol = future_to_symbol[future]
                     try:
                         data = future.result()
                         logging.info(f"Retrieve {symbol} data: {data}")
-                        q.put((symbol, data))
+                        if data != None:
+                            q.put((symbol, data))
                     except Exception as e:
                         logging.error(f"{symbol} generating exception: {e}")
             logging.info(f"End a round: {datetime.datetime.now()}")
+            time.sleep(10)
 
         
         # api_thread.join()

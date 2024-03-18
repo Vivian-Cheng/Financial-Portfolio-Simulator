@@ -4,7 +4,7 @@ This module contains all parameters used in the real-time system script.
 """
 
 # The maximum number of calls per second per API key
-API_RATE_LIMIT = 10
+API_RATE_LIMIT = 5
 # A list of available API keys
 API_KEYS = ["c844d4qad3ide9hefb20",
             "cnfda4pr01qi6ftoi2h0cnfda4pr01qi6ftoi2hg", 
@@ -64,8 +64,8 @@ SYMBOLS = ["MMM", "AOS", "ABT", "ABBV", "ACN", "ADBE", "AMD", "AES", "AFL", "A",
 
 SYMBOLS_100 = SYMBOLS[:100]
 
-RETRY_COUNT = 3
-RETRY_DELAY = 1
+RETRY_COUNT = 2
+RETRY_DELAY = 5
 
 # The port number of the MongoDB server in localhost
 MONGODB_PORT = 8000
