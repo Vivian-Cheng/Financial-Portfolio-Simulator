@@ -39,17 +39,15 @@ In the MongoDB setup, each stock's data is distributed across multiple databases
 }
 ```
 
+## Web
+How to run the app
+1. run backend script
 
-## Project Timeline
----
-
-```mermaid
-gantt
-dateFormat  YYYY-MM-DD
-    section Real-time
-    Phase 1           :a1, 2024-02-14, 2024-02-29
-    Phase 2           :after a1  , 2024-03-17
-axisFormat %m-%d
 ```
-
-> Read more about mermaid here: <http://mermaid-js.github.io/mermaid/>
+python3 web/server.py
+```
+2. run frontend app (must run in web folder)
+```
+cd web
+streamlit run app.py
+```
