@@ -80,7 +80,31 @@ def quote_chart():
     
     return jsonify(list(data))
 
+@app.route('/admin/dbstats', methods=['GET'])
+def dbstats():
+    db_list = [name for name in mongo_client.list_database_names() if name.startswith(DB_NAME)]
+    db_stat = {'stats':{}, 'collections':{}}
+    for db_name in db_list:
+        db = mongo_client[db_name]
+        db_stat['stats'][db_name] = db.command('dbStats')
+        db_stat['collections'][db_name] = {"collections": db.list_collection_names()}
+    return jsonify(db_stat)
 
+@app.route('/admin/commands', methods=['GET'])
+def commands():
+    db = request.args.get("db")
+    collection = request.args.get("collection")
+    action = request.args.get("action")
+    query = request.args.get("query")
+
+    if action == "drop":
+        try:
+            result = mongo_client[db][collection].drop()
+            print(result)
+            return jsonify(message="Success!")
+        except Exception as e:
+            print(e)
+            return jsonify(message="Fail!")
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8080, debug=True)
