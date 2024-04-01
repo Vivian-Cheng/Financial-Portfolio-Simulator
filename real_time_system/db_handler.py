@@ -168,3 +168,17 @@ class ConsistentHash():
         key = hash_fn(item, self.num_bucket)
         index = bisect_right(self.keys, key) % len(self.keys)
         return self.nodes[index]
+
+
+def migrate_data(mongo_client, old_node, ch):
+    old_db = mongo_client[old_node]
+    collections = old_db.list_collection_names()
+    for collection_name in collections:
+        new_node = DB_NAME + ch.get_node(collection_name)
+        if collection_name != "dummy" and new_node != old_node:
+            logging.info(f"Move {collection_name} from {old_node} to {new_node}")
+            new_db = mongo_client[new_node]
+            collection = old_db[collection_name]
+            target_collection = new_db[collection_name] 
+            target_collection.insert_many(collection.find())
+            collection.drop()
