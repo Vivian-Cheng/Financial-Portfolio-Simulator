@@ -4,7 +4,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from datetime import datetime, date
 from flask import Flask, request, jsonify
 from real_time_system.config import MONGODB_SERVER_ADDR, TOTAL_BUCKET, DB_NAME
-from real_time_system.db_handler import connect_mongodb, scan_database, ConsistentHash
+from real_time_system.db_handler import connect_mongodb, scan_database, ConsistentHash, migrate_data
 
 # Flask app
 app = Flask(__name__)
@@ -80,7 +80,7 @@ def quote_chart():
     
     return jsonify(list(data))
 
-@app.route('/admin/dbstats', methods=['GET'])
+@app.route('/realtime/dbstats', methods=['GET'])
 def dbstats():
     db_list = [name for name in mongo_client.list_database_names() if name.startswith(DB_NAME)]
     db_stat = {'stats':{}, 'collections':{}}
@@ -90,7 +90,7 @@ def dbstats():
         db_stat['collections'][db_name] = {"collections": db.list_collection_names()}
     return jsonify(db_stat)
 
-@app.route('/admin/commands', methods=['GET'])
+@app.route('/realtime/commands', methods=['GET'])
 def commands():
     db = request.args.get("db")
     collection = request.args.get("collection")
@@ -105,6 +105,40 @@ def commands():
         except Exception as e:
             print(e)
             return jsonify(message="Fail!")
+    if action == "count":
+        res = mongo_client[db][collection].count_documents({})
+        return jsonify(res)
+    if action == "remove_expired":
+        format_time = datetime.combine(date.today(), 
+                                       datetime.strptime("00:00:00", '%H:%M:%S').time())
+        res = mongo_client[db][collection].delete_many(
+            {'timestamp': {'$lt': format_time}})
+        return jsonify(res.deleted_count)
+    if action == "drop_all":
+        collections = mongo_client[db].list_collection_names()
+        for c in collections:
+            if c != "dummy":
+                mongo_client[db][c].drop()
+        return jsonify(message="Success!")
+        
+@app.route('/realtime/addnode', methods=['GET'])
+def addnode():
+    new_idx = ch.add_node(str(len(ch.nodes)))
+    old_idx = (new_idx + 1) % len(ch.nodes)
+    new_node = f"{DB_NAME}{ch.nodes[new_idx]}"
+    old_node = f"{DB_NAME}{ch.nodes[old_idx]}"
+    migrate_data(mongo_client=mongo_client, old_node=old_node, ch=ch)
+    return jsonify({"new_db": new_node, "old_db": old_node})
+
+@app.route('/realtime/deletenode', methods=['GET'])
+def deletenode():
+    node_id = len(ch.nodes) - 1
+    if node_id < 0:
+        return jsonify(message="No node to delete")
+    node = f"{DB_NAME}{node_id}"
+    ch.remove_node(str(node_id))
+    migrate_data(mongo_client=mongo_client, old_node=node, ch=ch)
+    return jsonify({"db": node})
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8080, debug=True)

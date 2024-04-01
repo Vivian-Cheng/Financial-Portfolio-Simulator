@@ -16,7 +16,7 @@ if "realtime_db_stats" not in st.session_state:
     st.session_state.realtime_db_stats = None
 
 def fetch_realtime_db_stat():
-    res = requests.get('http://127.0.0.1:8080/admin/dbstats')
+    res = requests.get('http://127.0.0.1:8080/realtime/dbstats')
     return res.json()
 def refresh():
     st.session_state.realtime_db_stats = fetch_realtime_db_stat()
@@ -25,7 +25,13 @@ def run_realtime_commands(db, collection, action, query):
               'collection': collection,
               'action': action,
               'args': query}
-    res = requests.get('http://127.0.0.1:8080/admin/commands', params=params)
+    res = requests.get('http://127.0.0.1:8080/realtime/commands', params=params)
+    return res.json()
+def run_realtime_addnode():
+    res = requests.get('http://127.0.0.1:8080/realtime/addnode')
+    return res.json()
+def run_realtime_deletenode():
+    res = requests.get('http://127.0.0.1:8080/realtime/deletenode')
     return res.json()
 
 
@@ -41,6 +47,14 @@ st.session_state.realtime_db_stats = fetch_realtime_db_stat()
 with tab_stats:
     realtime_db_stats_df = pd.DataFrame(st.session_state.realtime_db_stats['stats'])
     st.dataframe(realtime_db_stats_df, use_container_width=True)
+    if st.button("Add Database"):
+        with st.spinner('adding new database...'):
+            res = run_realtime_addnode()
+            st.write(res)
+    if st.button("Remove Database"):
+        with st.spinner('removing database...'):
+            res = run_realtime_deletenode()
+            st.write(res)
 with tab_chart:
     chart_df = pd.DataFrame(st.session_state.realtime_db_stats['stats'])
     counts = pd.DataFrame({
@@ -63,12 +77,10 @@ with tab_collection:
     db = st.selectbox("Database", st.session_state.realtime_db_stats['collections'].keys())
     collection = st.selectbox("Collections", st.session_state.realtime_db_stats['collections'][db]['collections'])
     action = st.selectbox("Actions", 
-                          ("drop",))
+                          ("drop","count","remove_expired", "drop_all"))
     query = ""
     if st.button("Run"):
-        res = run_realtime_commands(db=db, collection=collection, action=action, query=query)
-        if res['message'] == "Success!":
-            st.success("Success!")
-        else:
-            st.error("Fail!")
+        with st.spinner("running command..."):
+            res = run_realtime_commands(db=db, collection=collection, action=action, query=query)
+            st.write(res)
 
