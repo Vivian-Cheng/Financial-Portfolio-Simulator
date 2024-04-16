@@ -39,6 +39,7 @@ def authenticated_menu():
 def logout():
     st.session_state.role = None
     st.session_state.logged_in = False
+    st.session_state.current_user_id = None
     st.info("Logged out successfully!")
     sleep(0.5)
     st.switch_page("app.py")

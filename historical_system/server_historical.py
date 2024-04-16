@@ -96,7 +96,12 @@ def user_verification():
     mysql_cursor.execute(query, (usrname, passwrd))
     result = mysql_cursor.fetchone()[0]
     
-    return str(bool(result))
+    if result:
+        user_id = result[0]
+        is_verified = result[1]
+        return jsonify({'is_verified': is_verified, 'user_id': user_id}), 200
+    else:
+        return jsonify({'is_verified': 'false', 'user_id': None}), 400
 
 
 @app.route('/user_registration', methods=['POST'])
@@ -114,12 +119,14 @@ def user_registration():
     try:
         mysql_cursor.execute(query, (usrname,))
         mysql_conn.commit()
-        return True  #If successfully inserted
+        #Get the ID of the last inserted row
+        user_id = mysql_cursor.lastrowid
+        return jsonify({'is_registered': True, 'user_id': user_id}), 200  #If successfully inserted
     except mysql.connector.Error as err:
         if err.errno == 1062:  #Duplicate entry error
-            return False  #User already exists
+            return jsonify({'is_registered': False, 'user_id': None}), 400
         else:
-            return 'Error: {}'.format(err)  # Other error
+            return jsonify({'error': str(err), 'user_id': None})
 
 
 @app.route('/transaction', methods=['POST'])
@@ -168,7 +175,7 @@ def get_transaction():
     
     mysql_conn.commit()
 
-    return jsonify({'message': 'Transaction processed successful.'})
+    return jsonify({'message': 'Transaction processed successful.'}),200
 
 
 @app.route('/user_info', methods=['GET'])

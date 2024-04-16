@@ -5,6 +5,8 @@ from menu import make_menu
 import pandas as pd
 import altair as alt
 from streamlit_autorefresh import st_autorefresh
+import app
+
 
 # initialize session state variable
 if "is_market_close" not in st.session_state:
@@ -16,6 +18,8 @@ if "stock_quote_chart" not in st.session_state:
 # handle missing state when refresh
 if "search_stock" not in st.session_state:
     st.switch_page("pages/home.py")
+# Access current_user_id from app.py
+current_user_id = app.st.session_state.current_user_id
 
 
 # TODO - set a api url variable
@@ -36,6 +40,7 @@ def check_market_close():
             return False
     return True
 
+#Real-time section
 # @st.cache_data(ttl=10)
 def fetch_stock_quote():
     params = {'symbol': st.session_state.search_stock[0]}
@@ -89,6 +94,76 @@ def get_quote_chart(data):
     )
     return (lines + points + tooltips).interactive()
 
+#Historical section
+def send_transaction(volume):
+    #Send transaction request to Flask backend
+    url = "http://127.0.0.1:8080/transaction"
+    payload = {
+        "symbol": st.session_state.search_stock[0],  #current stock price
+        "volume": volume,
+        "userId": current_user_id  #from app.py
+    }
+    response = requests.post(url, json=payload)
+    
+    if response.status_code == 200:
+        st.success("Transaction processed successfully.")
+    else:
+        st.error("Transaction failed. Please try again.")
+
+def fetch_hist_stock_chart(start_date, end_date):
+    params = {'symbol': st.session_state.search_stock[0],
+              'start_date': start_date.strftime('%Y-%m-%d'),  # Format start date as YYYY-MM-DD
+              'end_date': end_date.strftime('%Y-%m-%d') }
+    res = requests.get('http://127.0.0.1:8080/stock_chart_data', params=params)
+    print(res.json())
+    return res.json()
+
+def fetch_stock_table_stat():
+    params = {'symbol': st.session_state.search_stock[0],
+              'start_date': start_date.strftime('%Y-%m-%d'),  # Format start date as YYYY-MM-DD
+              'end_date': end_date.strftime('%Y-%m-%d') }
+    res = requests.get('http://127.0.0.1:8080/stock_data')
+    return res.json()
+
+def get_hist_chart(data):
+    hover = alt.selection_point(
+        fields=["date"],
+        nearest=True,
+        on="mouseover",
+        empty=False
+    )
+
+    lines = (
+        alt.Chart(data, title="Historical stock prices")
+        .mark_line()
+        .encode(
+            x="date",
+            y = alt.Y("price", scale=alt.Scale(
+                domain=[data['price'].min(), data['price'].max()]))
+        )
+    )
+
+    # Draw points on the line, and highlight based on selection
+    points = lines.transform_filter(hover).mark_circle(size=80)
+
+    # Draw a rule at the location of the selection
+    tooltips = (
+        alt.Chart(data)
+        .mark_rule()
+        .encode(
+            x="date",
+            y="price",
+            opacity=alt.condition(hover, alt.value(0.3), alt.value(0)),
+            tooltip=[
+                alt.Tooltip("date", title="Date"),
+                alt.Tooltip("price", title="Price (USD)"),
+            ],
+        )
+        .add_params(hover)
+    )
+    return (lines + points + tooltips).interactive()
+
+
 st.session_state.stock_info = fetch_stock_quote()
 st.session_state.is_market_close = check_market_close()
 
@@ -132,7 +207,6 @@ with col_sum:
 
 
 # TODO: check user wallet
-# TODO: transaction api
 st.markdown("⚠️:orange[Transaction available when market is open]")
 amt = st.number_input(
     'Input amount',
@@ -143,9 +217,15 @@ amt = st.number_input(
 col_buy, col_sell = st.columns(2)
 with col_buy:
     if st.button("Buy", disabled=st.session_state.is_market_close):
+        volume = amt  # Set volume to the positive value entered by the user
+        #transaction api
+        send_transaction(volume)
         st.write("buy!")
 with col_sell:
     if st.button("Sell", disabled=st.session_state.is_market_close):
+        volume = -amt  # Set volume to the positive value entered by the user
+        #transaction api
+        send_transaction(volume)
         st.write("sell!")
 
 tab_realtime, tab_historical = st.tabs(["Real-time", "Historical"])
@@ -169,7 +249,23 @@ with tab_realtime:
 
 with tab_historical:
     st.header("Historical chart")
-    # TODO - historical chart
+    col_start, col_end = st.columns(2)
+    with col_start:
+        start_date = st.time_input("Start date")
+    with col_end:
+        end_date = st.time_input("End date")
+    if start_date and end_date:
+        #plot close prices
+        st.session_state.stock_hist_chart = fetch_hist_stock_chart(start_date, end_date)
+    if len(st.session_state.stock_hist_chart) > 0:
+        hist_chart_df = pd.DataFrame(st.session_state.stock_hist_chart, columns=["price", "date"])
+        hist_chart_df['date'] = pd.to_datetime(hist_chart_df['date'])
+        hist_chart = get_hist_chart(hist_chart_df)
+        st.altair_chart(hist_chart, use_container_width=True)
+        #table for detail prices (open, high, low, close) under the chart 
+        st.session_state.stock_db_list = fetch_stock_table_stat()
+        hist_price_df = pd.DataFrame(st.session_state.stock_db_list)
+        st.dataframe(hist_price_df, use_container_width=True)
 
 st_autorefresh(interval=60 * 1000, key="api_update")
 st.session_state.stock_info = fetch_stock_quote()
