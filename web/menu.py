@@ -31,7 +31,9 @@ def authenticated_menu():
     if st.session_state.get("search_stock", None) is not None and st.session_state.search_stock != (None, None):
         st.sidebar.page_link("pages/symbol.py", label="Symbol", icon="📈")
     if st.session_state.role in ["admin"]:
-        st.sidebar.page_link("pages/admin.py", label="admin", icon="🧑‍💻")
+        st.sidebar.page_link("pages/admin_realtime.py", label="admin - real-time", icon="🧑‍💻")
+    if st.session_state.role in ["admin"]:
+        st.sidebar.page_link("pages/admin_historical.py", label="admin - historical", icon="👩‍💻")
     if st.button("Log out"):
         logout()
 

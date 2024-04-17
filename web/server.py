@@ -383,5 +383,60 @@ def get_user_inventory():
     
     return jsonify(user_inv)
 
+@app.route('/user_list', methods=['GET'])
+def get_user_info():
+    """
+    Display user list in the Admin Page
+    Arg: ID, username
+    Return: json
+    """
+    usrname = request.args.get('username')
+    query = "SELECT * FROM users WHERE username = %s"
+    mysql_cursor.execute(query, (usrname, ))
+    user_info = mysql_cursor.fetchone()
+    
+    return jsonify(user_info)
+
+@app.route('/insert_user', methods=['POST'])
+def insert_user():
+    """
+    Insert a new user into the users table
+    Args: username, password
+    Returns: Success or failure message
+    """
+    usrname = request.json.get('username')
+    passwrd = request.json.get('password')
+    
+    # Check if username already exists
+    query_check = "SELECT username FROM users WHERE username = %s"
+    mysql_cursor.execute(query_check, (usrname,))
+    existing_username = mysql_cursor.fetchone()
+    
+    if existing_username:
+        return jsonify({'message': 'Username already exists. Please try a different username.'}), 400
+    
+    # Insert the user if username is unique
+    query_insert = "INSERT INTO users (username, passcode) VALUES (%s, %s)"
+    mysql_cursor.execute(query_insert, (usrname, passwrd))
+
+    return jsonify({'message': 'User inserted successfully'}), 200
+
+
+@app.route('/delete_user', methods=['POST'])
+def delete_user():
+    """
+    Delete a user from the users table
+    Args: username
+    Returns: Success or failure message
+    """
+    usrname = request.json.get('username')
+    passwrd = request.json.get('password')
+    query = "DELETE FROM users WHERE username = %s and passcode= %s"
+    mysql_cursor.execute(query, (usrname,passwrd))
+    if mysql_cursor.rowcount > 0:
+        return jsonify({'message': 'User deleted successfully'}), 200
+    else:
+        return jsonify({'message': 'User not found or deletion failed'}), 400
+
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8080, debug=True)
