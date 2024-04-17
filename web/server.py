@@ -161,7 +161,7 @@ def get_stock_list():
     Arg: Symbol,company
     Return: json
     """
-    query = f"SELECT symbol, company FROM stocks"
+    query = f"SELECT symbol, company FROM STOCK.stocks"
     mysql_cursor.execute(query)
     data = mysql_cursor.fetchall()
 
@@ -181,7 +181,7 @@ def get_stock_chart_data():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
 
-    query = f"SELECT symbol, hdate, c FROM stockhistory WHERE symbol = %s AND hdate BETWEEN %s AND %s"
+    query = f"SELECT symbol, hdate, c FROM STOCK.stockhistory WHERE symbol = %s AND hdate BETWEEN %s AND %s"
     mysql_cursor.execute(query,(symbol, start_date, end_date))
     data = mysql_cursor.fetchall()
 
@@ -201,7 +201,7 @@ def get_stock_data():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
 
-    query = f"SELECT symbol, hdate, o, h, l, c FROM stockhistory WHERE symbol = %s AND hdate BETWEEN %s AND %s"
+    query = f"SELECT symbol, hdate, o, h, l, c FROM STOCK.stockhistory WHERE symbol = %s AND hdate BETWEEN %s AND %s"
     mysql_cursor.execute(query,(symbol, start_date, end_date))
     data = mysql_cursor.fetchall()
 
@@ -221,7 +221,7 @@ def get_db_stats():
     Return: json
     """
     #Get summary
-    mysql.cursor.execute("SELECT table_name, table_schema, engine, table_rows, update_time from information_schema.tables")
+    mysql_cursor.execute("SELECT table_name, table_schema, engine, table_rows, update_time from information_schema.tables")
     summary_stats=mysql_cursor.fetchall()
     
     return jsonify(summary_stats)
@@ -233,10 +233,8 @@ def get_data_availability():
     Arg: Date, Availability
     Return: json
     """
-    mysql.cursor.execute("""SELECT sh.hdate AS Date, CONCAT(count(sh.symbol),'/', s.total_stock_count) AS Availability 
-                         FROM stockhistory sh 
-                         JOIN (SELECT count(*) AS total_stock_count FROM stocks) AS s 
-                         ON 1=1 
+    mysql_cursor.execute("""SELECT sh.hdate AS Date, CONCAT(count(sh.symbol),'/', (SELECT count(*) FROM STOCK.stocks)) AS Availability 
+                         FROM STOCK.stockhistory sh
                          GROUP BY sh.hdate""")
     data_availability=mysql_cursor.fetchall()
     
@@ -264,7 +262,6 @@ def user_verification():
                 username = %s AND 
                 passcode = %s
             """
-    print(usrname, passwrd, isadmin, type(isadmin))
     mysql_cursor.execute(query, (usrname, passwrd))
     result = mysql_cursor.fetchone()
     
@@ -291,7 +288,6 @@ def user_registration():
             INSERT INTO SIMULATOR.users (username,passcode,isAdmin)
             VALUES (%s, %s, %s)
             """
-    print(usrname, passwrd, isadmin, type(isadmin))
     try:
         mysql_cursor.execute(query, (usrname, passwrd, isadmin))
         mysql_conn.commit()
@@ -315,56 +311,53 @@ def get_transaction():
     #AND WHEN "SELL", THE VOLUME SHOULD BE THE INPUTET VOLUME VALUE*(-1)
     symbol = request.json.get('symbol')
     volume = request.json.get('volume')
-    current_username= request.json.get('username') #I DONT KNOW HOW TO GET THIS!!!
-    current_time= datetime.now()
+    user_id = request.json.get('userId') #I DONT KNOW HOW TO GET THIS!!!
 
-    if not (symbol and volume and current_username):
+    if not (symbol and volume and user_id):
         return jsonify({'message': 'Invalid request parameters.'}), 400
     
     #Retrieve the user ID corresponding to the provided username
+    """
     mysql_cursor.execute("SELECT id FROM users WHERE username = %s", (current_username,))
     user_id = mysql_cursor.fetchone()
     if not user_id:
         return jsonify({'message': f"User with username {current_username} not found."}), 404
     user_id = user_id[0]
-
+    """
     
     # Insert transaction into transactions table
-    if volume > 0:
-        # User is buying
-        mysql_cursor.execute("INSERT INTO transactions (buyerId, symbol, volume, txnTime) VALUES (%s, %s, %s, %s)", 
-                            (user_id, symbol, volume, current_time))
-    elif volume < 0:
-        # User is selling
-        mysql_cursor.execute("INSERT INTO transactions (buyerId, symbol, volume, txnTime) VALUES (%s, %s, %s, %s)", 
-                            (user_id, symbol, -volume, current_time))
+    if volume != 0:
+        mysql_cursor.execute("INSERT INTO SIMULATOR.transactions (buyerId, symbol, volume) VALUES (%s, %s, %s)", 
+                                (user_id, symbol, volume))
     else:
         return jsonify({'message': 'Volume must be nonzero.'}), 400
     mysql_conn.commit()
 
     # Update inventory table
     if volume >0:
-        mysql_cursor.execute("UPDATE inventory SET volume = volume + %s WHERE symbol = %s and userId= %s ", (volume, symbol, user_id))
+        mysql_cursor.execute("""INSERT INTO SIMULATOR.inventory (userId, symbol, volume) VALUES (%s, %s, %s) \
+                                    ON DUPLICATE KEY UPDATE volume = volume + %s""", (user_id, symbol, volume, volume))
     else:  #Sell
-        mysql_cursor.execute("UPDATE inventory SET volume = volume - %s WHERE symbol = %s and userId= %s ", (-volume, symbol, user_id))
+        mysql_cursor.execute("""INSERT INTO SIMULATOR.inventory (userId, symbol, volume) VALUES (%s, %s, %s) \
+                                    ON DUPLICATE KEY UPDATE volume = volume - %s""", (user_id, symbol, volume, -volume))
     
     mysql_conn.commit()
 
     return jsonify({'message': 'Transaction processed successful.'}),200
 
-@app.route('/user_info', methods=['GET'])
-def get_user_info():
-    """
-    Display user info in the Portfolio Page
-    Arg: ID, username
-    Return: json
-    """
-    usrname = request.args.get('username')
-    query = "SELECT ID, username FROM users WHERE username = %s"
-    mysql_cursor.execute(query, (usrname, ))
-    user_info = mysql_cursor.fetchone()
+# @app.route('/user_info', methods=['GET'])
+# def get_user_info():
+#     """
+#     Display user info in the Portfolio Page
+#     Arg: ID, username
+#     Return: json
+#     """
+#     usrname = request.args.get('username')
+#     query = "SELECT ID, username FROM users WHERE username = %s"
+#     mysql_cursor.execute(query, (usrname, ))
+#     user_info = mysql_cursor.fetchone()
     
-    return jsonify(user_info)
+#     return jsonify(user_info)
 
 @app.route('/user_inventory', methods=['GET'])
 def get_user_inventory():
@@ -373,29 +366,26 @@ def get_user_inventory():
     Arg: symbol, volume
     Return: json
     """
-    usrname = request.args.get('username')
+    user_id = request.args.get('userId')
     query = """SELECT symbol, volume 
-                FROM inventory i
-                JOIN users u ON i.userId=u.id
-                WHERE u.username = %s"""
-    mysql_cursor.execute(query, (usrname, ))
+                FROM SIMULATOR.inventory
+                WHERE userId = %s"""
+    mysql_cursor.execute(query, (user_id))
     user_inv = mysql_cursor.fetchall()
     
     return jsonify(user_inv)
 
 @app.route('/user_list', methods=['GET'])
-def get_user_info():
+def get_user_list():
     """
     Display user list in the Admin Page
-    Arg: ID, username
     Return: json
     """
-    usrname = request.args.get('username')
-    query = "SELECT * FROM users WHERE username = %s"
-    mysql_cursor.execute(query, (usrname, ))
-    user_info = mysql_cursor.fetchone()
+    query = "SELECT * FROM SIMULATOR.users"
+    mysql_cursor.execute(query)
+    user_list = mysql_cursor.fetchall()
     
-    return jsonify(user_info)
+    return jsonify(user_list)
 
 @app.route('/insert_user', methods=['POST'])
 def insert_user():
@@ -408,7 +398,7 @@ def insert_user():
     passwrd = request.json.get('password')
     
     # Check if username already exists
-    query_check = "SELECT username FROM users WHERE username = %s"
+    query_check = "SELECT username FROM SIMULATOR.users WHERE username = %s"
     mysql_cursor.execute(query_check, (usrname,))
     existing_username = mysql_cursor.fetchone()
     
@@ -416,8 +406,9 @@ def insert_user():
         return jsonify({'message': 'Username already exists. Please try a different username.'}), 400
     
     # Insert the user if username is unique
-    query_insert = "INSERT INTO users (username, passcode) VALUES (%s, %s)"
+    query_insert = "INSERT INTO SIMULATOR.users (username, passcode) VALUES (%s, %s)"
     mysql_cursor.execute(query_insert, (usrname, passwrd))
+    mysql_conn.commit()
 
     return jsonify({'message': 'User inserted successfully'}), 200
 
@@ -430,9 +421,8 @@ def delete_user():
     Returns: Success or failure message
     """
     usrname = request.json.get('username')
-    passwrd = request.json.get('password')
-    query = "DELETE FROM users WHERE username = %s and passcode= %s"
-    mysql_cursor.execute(query, (usrname,passwrd))
+    query = "DELETE FROM SIMULATOR.users WHERE username = %s AND isAdmin = False"
+    mysql_cursor.execute(query, (usrname))
     if mysql_cursor.rowcount > 0:
         return jsonify({'message': 'User deleted successfully'}), 200
     else:

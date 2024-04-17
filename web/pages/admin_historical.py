@@ -3,12 +3,13 @@ import requests
 import pandas as pd
 import altair as alt
 from menu import make_menu
+from time import sleep
 
 #initialize
 if "historical_db_stats" not in st.session_state:
     st.session_state.historical_db_stats = None
-if "data_availablity" not in st.session_state:
-    st.session_state.data_availablity = None
+if "data_availability" not in st.session_state:
+    st.session_state.data_availability = None
 if "user_list" not in st.session_state:
     st.session_state.user_list = None
 
@@ -26,6 +27,8 @@ def fetch_historical_db_stat():
     return res.json()
 def refresh():
     st.session_state.historical_db_stats = fetch_historical_db_stat()
+    st.session_state.data_availability = fetch_data_availability()
+    st.session_state.user_list = fetch_user_list()
 
 def fetch_data_availability():
     res = requests.get('http://127.0.0.1:8080/data_availability')
@@ -59,27 +62,30 @@ with col_btn:
     if st.button("Refresh"):
         refresh()
 tab_stats, tab_availability, tab_users = st.tabs(["DB Stats", "Stock Data Availability", "Users"])
-st.session_state.fetch_historical_db_stat = fetch_historical_db_stat()
-st.session_state.data_availablity = fetch_data_availability()
-st.session_state.user_list = fetch_user_list()
+refresh()
 with tab_stats:
-    historical_db_stats_df = pd.DataFrame(st.session_state.fetch_historical_db_stat)
-    st.dataframe(historical_db_stats_df, use_container_width=True)
+    historical_db_stats_df = pd.DataFrame(st.session_state.historical_db_stats)
+    st.dataframe(historical_db_stats_df, use_container_width=True, hide_index=True)
 with tab_availability:
-    avai_df = pd.DataFrame(st.session_state.data_availablity)
-    st.dataframe(avai_df, use_container_width=True)
+    avai_df = pd.DataFrame(st.session_state.data_availability, columns=["Date", "Availability"])
+    avai_df['Date'] = pd.to_datetime(avai_df['Date']).dt.strftime('%Y-%m-%d')
+    st.dataframe(avai_df, use_container_width=True, hide_index=True)
 with tab_users:
-    collections_df = pd.DataFrame(st.session_state.user_list)
-    st.data_editor(collections_df, use_container_width=True)
+    collections_df = pd.DataFrame(st.session_state.user_list, columns=["id", "username", \
+                                                                       "passcode", "isAdmin"])
+    collections_df.index += 1
+    st.dataframe(collections_df, use_container_width=True)
 
     st.markdown('''#### Admin commands''')
     username = st.text_input('Enter username')
-    password = st.text_input('Enter password', type='password')
+    password = st.text_input('Enter password (Only needed by insert)', type='password')
     if st.button('Insert User'):
-        insert_user(username, password)
-        st.write(insert_user(username, password))
+        with st.spinner("running command..."):
+            res = insert_user(username, password)
+            #st.write(res)
 
     if st.button('Delete User'):
-        delete_user(username, password)
-        st.write(delete_user(username, password))
+        with st.spinner("running command..."):
+            res = delete_user(username)
+            #st.write(res)
 

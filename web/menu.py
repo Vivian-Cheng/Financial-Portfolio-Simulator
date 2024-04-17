@@ -33,7 +33,7 @@ def authenticated_menu():
     if st.session_state.role in ["admin"]:
         st.sidebar.page_link("pages/admin_realtime.py", label="admin - real-time", icon="🧑‍💻")
     if st.session_state.role in ["admin"]:
-        st.sidebar.page_link("pages/admin_historical.py", label="admin - historical", icon="👩‍💻")
+        st.sidebar.page_link("pages/admin_historical.py", label="admin - historical & users", icon="👩‍💻")
     if st.button("Log out"):
         logout()
 
@@ -41,7 +41,9 @@ def authenticated_menu():
 def logout():
     st.session_state.role = None
     st.session_state.logged_in = False
+    st.session_state.current_user_name = None
     st.session_state.current_user_id = None
+    st.session_state.search_stock = (None, None)
     st.info("Logged out successfully!")
     sleep(0.5)
     st.switch_page("app.py")
