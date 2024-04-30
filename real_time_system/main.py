@@ -17,7 +17,9 @@ This script imports modules and orchestrates the data retrieval, processing,
 and writing tasks.
 """
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    filename='realtime_main.log',
+    level=logging.INFO)
 # create a thread-safe processing queue
 q = Queue()
 
