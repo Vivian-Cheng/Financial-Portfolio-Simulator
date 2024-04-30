@@ -102,6 +102,3 @@ python3 web/server.py
 cd web
 streamlit run app.py
 ```
-```
-python3 real_time_system/main.py "$current_date 13:00:00"
-```
